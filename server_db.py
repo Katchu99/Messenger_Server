@@ -103,7 +103,7 @@ class chatDB():
         values = (username, )
         self.cursor.execute(sql, values)
         hashed_password = self.cursor.fetchone()
-        print(hashed_password[0])
+        print(hashed_password)
         if hashed_password:
             return bcrypt.checkpw(hashed_password[0].encode('utf-8'), password.encode('utf-8'))
         return False
