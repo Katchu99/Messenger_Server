@@ -3,6 +3,7 @@ from flask_socketio import SocketIO, send, emit
 from flask_cors import CORS, cross_origin
 from server_db import chatDB
 
+
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
 cors = CORS(app)
@@ -17,13 +18,25 @@ connections = {}
 @app.route('/login', methods=['POST'])
 def login():
     data = request.get_json() # User data from request
-
+    print(data)
     # check if username and password exist and are correct
-    if db.check_if_exists(data['username']) and db.authenticate_user(data['username'], data['password']):
-        return jsonify({'success': True, 'message': 'Login successful'})
-    # return jsonify({'success': True, 'message': 'Login successful'})
-    # else
-    # return jsonify({'success': False, 'message': 'wrong credentials'}), 401
+    if db.check_if_exists(data['username']):
+        if db.authenticate_user(data['username'], data['password']):
+            return jsonify({'success': True, 'message': 'Login successful'})
+        else:
+            return jsonify({'success': False, 'message': 'Login failed'})
+    else:
+        return jsonify({'success': False, 'message': 'User does not exist'})
+
+# Route for register
+@app.route('/register', methods=['POST'])
+def register():
+    data = request.get_json() # User data from request
+    if db.check_if_exists(data['username']):
+        return jsonify({'success': False, 'message': 'Username already taken'}), 401
+    else:
+        db.register_user(data['username'], data['password'])
+        return jsonify({'success': True, 'message': 'Register successful'})
 
 # Route for receiving messages via HTTP POST
 @app.route('/messages', methods=['POST'])

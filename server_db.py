@@ -100,11 +100,12 @@ class chatDB():
 
     def authenticate_user(self, username, password):
         sql = '''SELECT password FROM users WHERE username=%s'''
-        values = (username)
+        values = (username, )
         self.cursor.execute(sql, values)
         hashed_password = self.cursor.fetchone()
+        print(hashed_password[0])
         if hashed_password:
-            return bcrypt.checkpw(password.encode('utf-8'), hashed_password[0].encode('utf-8'))
+            return bcrypt.checkpw(hashed_password[0].encode('utf-8'), password.encode('utf-8'))
         return False
 
     def add_message(self, sender, receiver, message):
