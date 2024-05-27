@@ -39,18 +39,22 @@ def register():
         return jsonify({'success': True, 'message': 'Register successful'})
 
 # Route for receiving messages via HTTP POST
-@app.route('/messages', methods=['POST'])
-@cross_origin(origin='*', headers=['Content-Type', 'Authorization'])
-def receive_messages():
-    data = request.get_json()
-    message = {
-        'username': data['username'],
-        'text': data['text']
-    }
-    #messages.append(message)
-    #Send message to all through WebSocket connected Clients
-    socketio.emit('message', message)
-    return jsonify({'success': True})
+#@app.route('/messages', methods=['POST'])
+#@cross_origin(origin='*', headers=['Content-Type', 'Authorization'])
+#def receive_messages():
+#    data = request.get_json()
+#    message = {
+#        'username': data['username'],
+#        'text': data['text']
+#    }
+#
+#    # for development reasons only, remove going into production mode
+#    print(message)
+#
+#    #messages.append(message)
+#    #Send message to all through WebSocket connected Clients
+#    socketio.emit('message', message)
+#    return jsonify({'success': True})
 
 #Route zum Abrufen von Nachrichten über HTTP GET
 @app.route('/messages', methods=['GET'])
@@ -63,7 +67,9 @@ def get_messages():
 def handle_message(message):
     # Safe message, will be replaced with db connection
     #messages.append(message)
+    print(message)
     send(message, broadcast=True)
 
 if __name__ == "__main__":
-    socketio.run(app, host="localhost", port=6969)
+    #ssl_context = ('./SSL/localhost.pem', './SSL/localhost-key.pem')
+    socketio.run(app, host="localhost", port=6969) #, ssl_context=ssl_context)

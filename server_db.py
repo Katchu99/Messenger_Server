@@ -13,7 +13,7 @@ class chatDB():
                 database=database
             )
         except mysql.connector.errors.DatabaseError as err:
-            if err.errno == errorcode.ER_BAD_DB_ERROR:
+            if err.errno == errorcode.ER_BAD_ERROR:
                 print(f"Database {database} does not exist.\nCreating database...")
                 self.create_database()
             else:
@@ -91,7 +91,9 @@ class chatDB():
     def register_user(self, username, password):
         if not self.check_if_exists(username):
             sql = '''INSERT INTO users (username, password) VALUES (%s, %s)'''
-            values = (username, password)
+            salt = bcrypt.gensalt()
+            hashed_password = bcrypt.hashpw(password.encode('utf-8'), salt)
+            values = (username, hashed_password)
             self.cursor.execute(sql, values)
             self.connection.commit()
             return "Successful"
@@ -102,10 +104,9 @@ class chatDB():
         sql = '''SELECT password FROM users WHERE username=%s'''
         values = (username, )
         self.cursor.execute(sql, values)
-        hashed_password = self.cursor.fetchone()
-        print(hashed_password)
+        hashed_password = self.cursor.fetchone()[0]
         if hashed_password:
-            return bcrypt.checkpw(hashed_password[0].encode('utf-8'), password.encode('utf-8'))
+            return bcrypt.checkpw(password.encode('utf-8'), hashed_password.encode('utf-8'))
         return False
 
     def add_message(self, sender, receiver, message):
