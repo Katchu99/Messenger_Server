@@ -13,6 +13,13 @@ logging.basicConfig(
     filemode='w'
 )
 
+# Adding console handler
+console = logging.StreamHandler()
+console.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+console.setFormatter(formatter)
+logging.getLogger('').addHandler(console)
+
 # Initialzie Logger for this Module
 logger = logging.getLogger(__name__)
 

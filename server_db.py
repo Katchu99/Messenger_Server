@@ -4,18 +4,7 @@ import logging
 from mysql.connector import errorcode
 from datetime import datetime
 
-# Initialize Logging
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S',
-    filename='db.log',
-    filemode='w'
-)
-
-# Initliaze Logger for this Module
 logger = logging.getLogger(__name__)
-
 
 class chatDB():
     def __init__(self, host, user, password, database):
@@ -43,7 +32,7 @@ class chatDB():
             self.create_friends_table()
         except mysql.connector.errors.DatabaseError as err:
             if err.errno == errorcode.ER_BAD_DB_ERROR:
-                logger.error(f"Database {self.database} does not exist.\nCreating database...")
+                logger.error(f"Database {self.database} does not exist. Creating database...")
                 self.create_database()
                 self.connect()
             else:
