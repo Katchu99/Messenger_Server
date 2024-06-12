@@ -2,7 +2,10 @@ import logging
 from flask import Flask, jsonify, request
 from flask_socketio import SocketIO, send, emit
 from flask_cors import CORS, cross_origin
-from server_db import chatDB
+#from server_data import db
+
+import db.controller.data as data
+import db.controller.chats as chats
 
 # Initialize Logging
 logging.basicConfig(
@@ -28,8 +31,8 @@ app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
 cors = CORS(app)
 #app.config['CORS_HEADERS'] = 'Content-Type'
-logger.info("Establishing DB connection...")
-db = chatDB(host="localhost", user="server", password="rootroot", database="mawi")
+logger.info("Establishing data connection...")
+# data = chatdata(host="localhost", user="server", password="rootroot", database="mawi")
 
 #messages = []
 connections = {}
@@ -38,33 +41,33 @@ connections = {}
 # TODO muss userdata zurückgeben
 @app.route('/login', methods=['POST'])
 def login():
-    data = request.get_json() # User data from request
-    logger.info('Login attempt for user: %s', data['username'])
+    login_request = request.get_json() # User data from request
+    logger.info('Login attempt for user: %s', login_request['username'])
 
     # check if username and password exist and are correct
-    if db.check_if_exists(data['username']):
-        if db.authenticate_user(data['username'], data['password']):
-            logger.info('Login successful for user: %s', data['username'])
+    if data.check_if_exists(login_request['username']):
+        if data.authenticate_user(login_request['username'], login_request['password']):
+            logger.info('Login successful for user: %s', login_request['username'])
             return jsonify({'success': True, 'message': 'Login successful'})
         else:
-            logger.warning('Login failed for user: %s', data['username'])
+            logger.warning('Login failed for user: %s', login_request['username'])
             return jsonify({'success': False, 'message': 'Login failed'})
     else:
-        logger.warning('User does not exist: %s', data['username'])
+        logger.warning('User does not exist: %s', login_request['username'])
         return jsonify({'success': False, 'message': 'User does not exist'})
 
 # Route for register
 @app.route('/register', methods=['POST'])
 def register():
-    data = request.get_json() # User data from request
-    logger.info('Registration attempt for user: %s', data['username'])
+    login_request = request.get_json() # User data from request
+    logger.info('Registration attempt for user: %s', login_request['username'])
 
-    if db.check_if_exists(data['username']):
-        logger.warning('Registration failed - Username already taken: %s', data['username'])
+    if data.check_if_exists(login_request['username']):
+        logger.warning('Registration failed - Username already taken: %s', login_request['username'])
         return jsonify({'success': False, 'message': 'Username already taken'}), 400
     else:
-        db.register_user(data['username'], data['password'])
-        logger.info('Registration successful for user: %s', data['username'])
+        data.register_user(login_request['username'], login_request['password'])
+        logger.info('Registration successful for user: %s', login_request['username'])
         return jsonify({'success': True, 'message': 'Register successful'})
 
 # Route for receiving messages via HTTP POST
@@ -89,13 +92,13 @@ def register():
 @app.route('/messages', methods=['GET'])
 @cross_origin(origin='*', headers=['Content-Type', 'Authorization'])
 def get_messages():
-    return jsonify(db.get_global_message_history())
+    return jsonify(data.get_global_message_history())
 
 # WebSocket-Event-Handler to receive messages
 @socketio.on('message')
 def handle_message(message):
     logger.info('Received message: %s', message)
-    # Safe message, will be replaced with db connection
+    # Safe message, will be replaced with data connection
     #messages.append(message)
     send(message, broadcast=True)
 
