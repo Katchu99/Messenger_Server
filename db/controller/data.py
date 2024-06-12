@@ -148,4 +148,4 @@ def authenticate_user(username, password):
 #     logger.info(f"Friendship removed between {sender} and {receiver}.")
 
 def get_chats(userid):
-    
+    pass
