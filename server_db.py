@@ -1,19 +1,32 @@
 import mysql.connector
+import pymongo
 import bcrypt
 import logging
+import uuid
+import json
 from mysql.connector import errorcode
 from datetime import datetime
+
+#import db.controller.chats as chats
+
+import pymongo.errors
 
 logger = logging.getLogger(__name__)
 
 class chatDB():
     def __init__(self, host, user, password, database):
+        # MySQL Data
         self.host = host
         self.user = user
         self.password = password
         self.database = database
         self.connection = None
         self.cursor = None
+        
+        self.mongo_client = None
+        self.mongo_database = None
+        self.chat_content_table = None
+
         self.connect()
         logger.info(f"Initialized chatDB with host={host}, user={user}, database={database}")
 
@@ -30,15 +43,25 @@ class chatDB():
             self.create_user_table()
             self.create_chat_table()
             self.create_friends_table()
+
+            # self.mongo_client = pymongo.MongoClient("mongodb://localhost:27017/")
+            # self.mongo_database = self.mongo_client['chats']
+            # self.chat_content_table = self.mongodb['chat_content']
+
         except mysql.connector.errors.DatabaseError as err:
             if err.errno == errorcode.ER_BAD_DB_ERROR:
-                logger.error(f"Database {self.database} does not exist. Creating database...")
+                logger.error(f"MySQL-Database {self.database} does not exist. Creating database...")
                 self.create_database()
                 self.connect()
             else:
                 logger.exception(f"Database connection error: {err}")
                 raise
 
+        except pymongo.errors.ConnectionFailure as err:
+            logger.error(f"Error connecting to mongodb - {err}")
+
+
+    # ---> SQL <---
     def create_database(self):
         try:
             temp_connection = mysql.connector.connect(
@@ -47,19 +70,20 @@ class chatDB():
                 password=self.password
             )
             temp_cursor = temp_connection.cursor()
-            logger.info(f"Successfully established temporary connection for database creation.")
+            logger.info(f"Successfully established temporary connection for MySQL database creation.")
             temp_cursor.execute('''CREATE DATABASE IF NOT EXISTS mawi''')
             temp_connection.commit()
             temp_cursor.close()
             temp_connection.close()
-            logger.info(f"Database {self.database} created successfully.")
+            logger.info(f"MySQL-Database {self.database} created successfully.")
         except mysql.connector.Error as err:
             logger.exception(f"Error creating database: {err}")
             raise
+     
 
     def create_user_table(self):
         self.cursor.execute('''CREATE TABLE IF NOT EXISTS users (
-                            id INT AUTO_INCREMENT PRIMARY KEY,
+                            id VARCHAR(255) PRIMARY KEY,
                             username VARCHAR(255),
                             password VARCHAR(255)
         )''')
@@ -70,10 +94,9 @@ class chatDB():
     def create_chat_table(self):
         self.cursor.execute('''CREATE TABLE IF NOT EXISTS chats (
                             id INT AUTO_INCREMENT PRIMARY KEY,
-                            sender VARCHAR(255),
-                            receiver VARCHAR(255),
-                            message TEXT,
-                            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                            name TEXT,
+                            chat_member_ids JSON,
+                            chat_content_id VARCHAR(255)
                             )''')
         
         self.connection.commit()
@@ -118,10 +141,10 @@ class chatDB():
 
     def register_user(self, username, password):
         if not self.check_if_exists(username):
-            sql = '''INSERT INTO users (username, password) VALUES (%s, %s)'''
+            sql = '''INSERT INTO users (id, username, password) VALUES (%s, %s, %s)'''
             salt = bcrypt.gensalt()
             hashed_password = bcrypt.hashpw(password.encode('utf-8'), salt)
-            values = (username, hashed_password)
+            values = (uuid.uuid4().hex, username, hashed_password)
             self.cursor.execute(sql, values)
             self.connection.commit()
             logger.info(f"User {username} registered successfully.")
@@ -141,48 +164,6 @@ class chatDB():
         else:
             logger.warning(f"Failed authentication attempt for user: {username}")
             return False
-
-    def add_message(self, sender, receiver, message):
-        sql = '''INSERT INTO chats (sender, receiver, message)
-                        VALUE (%s, %s, %s)'''
-        
-        values = (sender, receiver, message)
-        self.cursor.execute(sql, values)
-        self.connection.commit()
-        logger.info(f"Message from {sender} to {receiver} added to chat.")
-
-    def get_message(self, sender, receiver):
-        sql = '''SELECT sender, message, timestamp FROM chats
-                    WHERE (sender=%s AND receiver=%s) OR (sender=%s AND receiver=%s)
-                    ORDER BY timestamp'''
-        values = (sender, receiver, receiver, sender)
-        self.cursor.execute(sql, values)
-        messages = self.cursor.fetchall()
-        logger.debug(f"Retrieved messages between {sender} and {receiver}.")
-        return messages
-
-    def get_global_message_history(self):
-        sql = '''SELECT sender, message, timestamp FROM chats
-                WHERE receiver="global"
-                ORDER BY timestamp'''
-        self.cursor.execute(sql)
-        result = self.cursor.fetchall()
-
-        formatted_result = []
-
-        for row in result:
-            message = {
-            'username': '',
-            'text': ''
-            }
-
-            row = list(row)
-            message['username'] = row[0]
-            message['text'] = row[1]
-            formatted_result.append(message)
-
-        logger.debug("Retrieved global message history.")
-        return formatted_result
 
     def send_friend_request(self, sender, receiver):
         sender_id = self.get_id_by_name(sender)
@@ -240,6 +221,60 @@ class chatDB():
         self.cursor.execute(sql, values)
         self.connection.commit()
         logger.info(f"Friendship removed between {sender} and {receiver}.")
+
+
+    # ---> MONGODB <---
+    def add_message(self, chat_id, message):
+        pass
+        #TODO
+
+    # def create_chat(self, user_ids, chat_name):
+
+    #     chatid = chats.insert_chat_to_db()
+
+    #     sql = '''INSERT INTO chats (name, chat_member_ids, chat_content_id)
+    #              VALUES (%s, %s, %s)'''
+    #     values = (chat_name, user_ids, chatid)
+    #     self.cursor.execute(sql, values)
+    #     self.connection.commit()
+    #     logger.info(f"New chat created with id {chatid} (SQL)")
+    #     # NICHT FERTIG!!!
+
+
+    def get_message(self, sender, receiver): # Überarbeiten ist alte VERSION!
+        sql = '''SELECT sender, message, timestamp FROM chats
+                    WHERE (sender=%s AND receiver=%s) OR (sender=%s AND receiver=%s)
+                    ORDER BY timestamp'''
+        values = (sender, receiver, receiver, sender)
+        self.cursor.execute(sql, values)
+        messages = self.cursor.fetchall()
+        logger.debug(f"Retrieved messages between {sender} and {receiver}.")
+        return messages
+
+    def get_global_message_history(self): # Überarbeiten ist alte Version!
+        sql = '''SELECT sender, message, timestamp FROM chats
+                WHERE receiver="global"
+                ORDER BY timestamp'''
+        self.cursor.execute(sql)
+        result = self.cursor.fetchall()
+
+        formatted_result = []
+
+        for row in result:
+            message = {
+            'username': '',
+            'text': ''
+            }
+
+            row = list(row)
+            message['username'] = row[0]
+            message['text'] = row[1]
+            formatted_result.append(message)
+
+        logger.debug("Retrieved global message history.")
+        return formatted_result
+
+
         
     def close(self):
         self.connection.close()
