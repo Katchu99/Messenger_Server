@@ -1,11 +1,12 @@
 import logging
+import datetime
+import secrets
 from flask import Flask, jsonify, request
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from flask_socketio import SocketIO, send, emit
 from flask_cors import CORS, cross_origin
-#from server_data import db
 
 import db.controller.data as data
-import db.controller.chats as chats
 
 # Initialize Logging
 logging.basicConfig(
@@ -32,10 +33,16 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 cors = CORS(app)
 #app.config['CORS_HEADERS'] = 'Content-Type'
 logger.info("Establishing data connection...")
-# data = chatdata(host="localhost", user="server", password="rootroot", database="mawi")
 
-#messages = []
 connections = {}
+
+# Generate Random Key
+def generate_secret_key(length=32):
+    return secrets.token_hex(length)
+
+# JWT Secret and Manage
+app.config['JWT_SECRET_KEY'] = generate_secret_key()
+jwt = JWTManager(app)
 
 # Route for login
 # TODO muss userdata zurückgeben
@@ -48,7 +55,21 @@ def login():
     if data.check_if_exists(login_request['username']):
         if data.authenticate_user(login_request['username'], login_request['password']):
             logger.info('Login successful for user: %s', login_request['username'])
-            return jsonify({'success': True, 'message': 'Login successful'})
+
+            # Set Token expire time based on remember_me
+            remember_me = login_request.get('remember_me', False)
+            if remember_me:
+                expires = datetime.timedelta(days=30)
+            else:
+                expires = datetime.timedelta(days=1)
+
+            # Generate the JWT-Token
+            access_token = create_access_token(identity=login_request['username'], expires_delta=expires)
+
+            user_id = data.get_id_by_name(login_request['username'])[0]
+            print(user_id)
+
+            return jsonify({'success': True, 'message': 'Login successful', 'access_token': access_token, 'user_id': user_id})
         else:
             logger.warning('Login failed for user: %s', login_request['username'])
             return jsonify({'success': False, 'message': 'Login failed'})
@@ -56,18 +77,25 @@ def login():
         logger.warning('User does not exist: %s', login_request['username'])
         return jsonify({'success': False, 'message': 'User does not exist'})
 
+@app.route('/protected', methods=['GET'])
+@jwt_required()
+def protected():
+    current_user = get_jwt_identity()
+    return jsonify(logged_in_as=current_user), 200
+
 # Route for register
 @app.route('/register', methods=['POST'])
 def register():
-    login_request = request.get_json() # User data from request
-    logger.info('Registration attempt for user: %s', login_request['username'])
+    register_request = request.get_json() # User data from request
+    logger.info('Registration attempt for user: %s', register_request['username'])
+    
 
-    if data.check_if_exists(login_request['username']):
-        logger.warning('Registration failed - Username already taken: %s', login_request['username'])
+    if data.check_if_exists(register_request['username']):
+        logger.warning('Registration failed - Username already taken: %s', register_request['username'])
         return jsonify({'success': False, 'message': 'Username already taken'}), 400
     else:
-        data.register_user(login_request['username'], login_request['password'])
-        logger.info('Registration successful for user: %s', login_request['username'])
+        data.register_user(register_request['username'], register_request['password'])
+        logger.info('Registration successful for user: %s', register_request['username'])
         return jsonify({'success': True, 'message': 'Register successful'})
 
 # Route for receiving messages via HTTP POST
@@ -89,20 +117,32 @@ def register():
 #    return jsonify({'success': True})
 
 #Route zum Abrufen von Nachrichten über HTTP GET
-@app.route('/messages', methods=['GET'])
+@app.route('/chat/<user_uuid>', methods=['GET'])
+@jwt_required()
 @cross_origin(origin='*', headers=['Content-Type', 'Authorization'])
-def get_messages():
-    return jsonify(data.get_global_message_history())
+def get_chats(user_uuid):
+    return jsonify(data.get_chats(user_uuid)) #data.get_chats() returns a list of tuples
+
+@app.route('/chat/<user_uuid>/createChat', methods=['POST'])
+@jwt_required()
+@cross_origin(origin='*', headers=['Content-Type', 'Authorization'])
+def createChat(user_uuid):
+    createChatRequest = request.get_json()
+    members = createChatRequest['members']
+    chatName = createChatRequest['name']
+    if data.create_chat(members, chatName) == "Successful":
+        return jsonify({'success': True})
+    else:
+        return jsonify({'success': False})
+    
+
 
 # WebSocket-Event-Handler to receive messages
 @socketio.on('message')
 def handle_message(message):
     logger.info('Received message: %s', message)
-    # Safe message, will be replaced with data connection
-    #messages.append(message)
     send(message, broadcast=True)
 
 if __name__ == "__main__":
     #ssl_context = ('./SSL/localhost.pem', './SSL/localhost-key.pem')
     socketio.run(app, host="localhost", port=6969) #, ssl_context=ssl_context)
-    logger.info("Server running.")
