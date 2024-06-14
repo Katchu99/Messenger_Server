@@ -3,8 +3,10 @@ sys.path.append('..')
 
 import bcrypt
 import uuid
+import json
 
 from db.data import data_obj, logger
+import db.controller.chats as chats
 
 def create_user_table():
     data_obj.cursor.execute('''CREATE TABLE IF NOT EXISTS users (
@@ -65,7 +67,7 @@ def get_name_by_id(user_id):
     return username
 
 def register_user(username, password):
-    if not data_obj.check_if_exists(username):
+    if not check_if_exists(username):
         sql = '''INSERT INTO users (id, username, password) VALUES (%s, %s, %s)'''
         salt = bcrypt.gensalt()
         hashed_password = bcrypt.hashpw(password.encode('utf-8'), salt)
@@ -147,5 +149,28 @@ def authenticate_user(username, password):
 #     data_obj.connection.commit()
 #     logger.info(f"Friendship removed between {sender} and {receiver}.")
 
-def get_chats(userid):
-    pass
+def create_chat(members, chat_name):
+    chat_id = chats.create_chat()
+    sql = '''INSERT INTO chats(name, chat_member_ids, chat_content_id) VALUES (%s, %s, %s)'''
+    members_json = json.dumps(members)
+    values = (chat_name, members_json, chat_id)
+    data_obj.cursor.execute(sql, values)
+    data_obj.connection.commit()
+    logger.info(f"Chat created with id {chat_id}")
+    return "Successful"
+
+def get_chats(userid): # return chat_document_id, chat_name, member_id_list
+    sql = '''SELECT chat_content_id, name FROM chats WHERE JSON_CONTAINS(chat_member_ids, %s)'''
+    values = (json.dumps([userid]),)
+    data_obj.cursor.execute(sql, values)
+    result = data_obj.cursor.fetchall()
+
+    formatted_results = []
+
+    for chat_content_id, chat_name in result:
+        formatted_results.append({
+            "chat_id": chat_content_id,
+            "chat_name": chat_name
+        })
+
+    return formatted_results

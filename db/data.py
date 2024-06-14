@@ -13,7 +13,7 @@ class chatData():
         self.password = password
         self.database = database
         self.connection = None
-        self.curesor = None
+        self.cursor = None
 
         self.connect()
         logger.info(f"Initialized chatData with host ={host}, user={user}, database={database}")
