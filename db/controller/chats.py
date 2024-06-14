@@ -4,7 +4,7 @@ sys.path.append("..")  # Fügt das übergeordnete Verzeichnis dem Python-Systemp
 from db.chats import mongo_obj
 mongo_db = mongo_obj.mongo_db
 
-def insert_chat_to_db():
+def create_chat():
     chat_data = {
         "messages": [
         ]
@@ -13,6 +13,6 @@ def insert_chat_to_db():
         print("MongoDB connection not initialized!")
         return
 
-    collection = mongo_db['chats']
+    collection = mongo_db['chat_content']
     chat_id = collection.insert_one(chat_data).inserted_id
-    return chat_id
+    return str(chat_id)
