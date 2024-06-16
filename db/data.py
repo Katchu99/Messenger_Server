@@ -28,9 +28,9 @@ class chatData():
             )
             self.cursor = self.connection.cursor()
             logger.info("Successfully connected to the database")
-            # self.create_user_table()
-            # self.create_chat_table()
-            # self.create_friends_table()
+            self.create_user_table()
+            self.create_chat_table()
+            self.create_friends_table()
         except mysql.connector.errors.DatabaseError as err:
             if err.errno == errorcode.ER_BAD_DB_ERROR:
                 logger.error(f"MySQL-Database {self.database} does not exist. Creating database...")
@@ -57,10 +57,41 @@ class chatData():
         except mysql.connector.Error as err:
             logger.exception(f"Error creating database: {err}")
             raise
-     
+
+    def create_user_table(self):
+        self.cursor.execute('''CREATE TABLE IF NOT EXISTS users (
+                                id VARCHAR(255) PRIMARY KEY,
+                                username VARCHAR(255),
+                                password VARCHAR(255)
+            )''')
+
+        self.connection.commit()
+        logger.info("User table created or already exists.")
+
+    def create_chat_table(self):
+        self.cursor.execute('''CREATE TABLE IF NOT EXISTS chats (
+                                id INT AUTO_INCREMENT PRIMARY KEY,
+                                name TEXT,
+                                chat_member_ids JSON,
+                                chat_content_id VARCHAR(255)
+                                )''')
+            
+        self.connection.commit()
+        logger.info("Chat table created or already exists.")
+
+    def create_friends_table(self):
+        self.cursor.execute('''CREATE TABLE IF NOT EXISTS friends (
+                                id INT AUTO_INCREMENT PRIMARY KEY,
+                                userid1 INT,
+                                userid2 INT,
+                                status VARCHAR(50))''')
+            
+        self.connection.commit()
+        logger.info("Friends table created or already exists.")
+
 data_obj = chatData(
     host="localhost",
-    user="server",
+    user="root",
     password="rootroot",
     database="mawi"
 )

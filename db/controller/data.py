@@ -8,37 +8,6 @@ import json
 from db.data import data_obj, logger
 import db.controller.chats as chats
 
-def create_user_table():
-    data_obj.cursor.execute('''CREATE TABLE IF NOT EXISTS users (
-                            id VARCHAR(255) PRIMARY KEY,
-                            username VARCHAR(255),
-                            password VARCHAR(255)
-        )''')
-
-    data_obj.connection.commit()
-    logger.info("User table created or already exists.")
-
-def create_chat_table():
-    data_obj.cursor.execute('''CREATE TABLE IF NOT EXISTS chats (
-                            id INT AUTO_INCREMENT PRIMARY KEY,
-                            name TEXT,
-                            chat_member_ids JSON,
-                            chat_content_id VARCHAR(255)
-                            )''')
-        
-    data_obj.connection.commit()
-    logger.info("Chat table created or already exists.")
-
-def create_friends_table():
-    data_obj.cursor.execute('''CREATE TABLE IF NOT EXISTS friends (
-                            id INT AUTO_INCREMENT PRIMARY KEY,
-                            userid1 INT,
-                            userid2 INT,
-                            status VARCHAR(50))''')
-        
-    data_obj.connection.commit()
-    logger.info("Friends table created or already exists.")
-
 def check_if_exists(username):
     sql = '''SELECT username FROM users WHERE username=%s'''
     values = (username,)

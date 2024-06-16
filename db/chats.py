@@ -14,6 +14,7 @@ class mongoDB():
 
     def mongo_init(self):
         client = MongoClient(self.MONGO_URI)
+        print(self.MONGO_URI)
         self.mongo_db = client.chats  # Setzen Sie mongo_db auf die Datenbank
         try:
             # Now schemas can be set in two ways
