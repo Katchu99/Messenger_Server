@@ -102,13 +102,13 @@ def register():
 #Route zum Abrufen von Nachrichten über HTTP GET
 @app.route('/chat/<user_uuid>', methods=['GET'])
 @jwt_required()
-@cross_origin(origin='*', headers=['Content-Type', 'Authorization'])
+@cross_origin( origins='*', headers=['Content-Type', 'Authorization'])
 def get_chats(user_uuid):
     return jsonify(data.get_chats(user_uuid)) #data.get_chats() returns a list of tuples
 
 @app.route('/chat/<user_uuid>/createChat', methods=['POST'])
 @jwt_required()
-@cross_origin(origin='*', headers=['Content-Type', 'Authorization'])
+@cross_origin(origins='*', headers=['Content-Type', 'Authorization'])
 def createChat(user_uuid):
     createChatRequest = request.get_json()
     members = createChatRequest['members']
