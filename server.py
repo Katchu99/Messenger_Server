@@ -98,23 +98,6 @@ def register():
         logger.info('Registration successful for user: %s', register_request['username'])
         return jsonify({'success': True, 'message': 'Register successful'})
 
-# Route for receiving messages via HTTP POST
-#@app.route('/messages', methods=['POST'])
-#@cross_origin(origin='*', headers=['Content-Type', 'Authorization'])
-#def receive_messages():
-#    data = request.get_json()
-#    message = {
-#        'username': data['username'],
-#        'text': data['text']
-#    }
-#
-#    # for development reasons only, remove going into production mode
-#    print(message)
-#
-#    #messages.append(message)
-#    #Send message to all through WebSocket connected Clients
-#    socketio.emit('message', message)
-#    return jsonify({'success': True})
 
 #Route zum Abrufen von Nachrichten über HTTP GET
 @app.route('/chat/<user_uuid>', methods=['GET'])
