@@ -50,11 +50,11 @@ jwt = JWTManager(app)
 def login():
     login_request = request.get_json() # User data from request
     logger.info('Login attempt for user: %s', login_request['username'])
-
+    username = login_request['username']
     # check if username and password exist and are correct
-    if data.check_if_exists(login_request['username']):
-        if data.authenticate_user(login_request['username'], login_request['password']):
-            logger.info('Login successful for user: %s', login_request['username'])
+    if data.check_if_exists(username):
+        if data.authenticate_user(username, login_request['password']):
+            logger.info('Login successful for user: %s', username)
 
             # Set Token expire time based on remember_me
             remember_me = login_request.get('remember_me', False)
@@ -64,12 +64,13 @@ def login():
                 expires = datetime.timedelta(days=1)
 
             # Generate the JWT-Token
-            access_token = create_access_token(identity=login_request['username'], expires_delta=expires)
+            user_id = data.get_id_by_name(username)
+            identity = {'id': user_id, 'username': username}
+            access_token = create_access_token(identity=identity, expires_delta=expires)
 
-            user_id = data.get_id_by_name(login_request['username'])[0]
-            print(user_id)
+            print(identity)
 
-            return jsonify({'success': True, 'message': 'Login successful', 'access_token': access_token, 'user_id': user_id})
+            return jsonify({'success': True, 'message': 'Login successful', 'access_token': access_token, 'user': identity})
         else:
             logger.warning('Login failed for user: %s', login_request['username'])
             return jsonify({'success': False, 'message': 'Login failed'})
@@ -98,6 +99,21 @@ def register():
         logger.info('Registration successful for user: %s', register_request['username'])
         return jsonify({'success': True, 'message': 'Register successful'})
 
+
+# Route to check token
+@app.route('/check-token', methods=['GET'])
+@jwt_required()
+def check_token():
+    identity = get_jwt_identity()
+    user_id = identity['id']
+    username = identity['username']
+
+    user = {
+        'id': user_id,
+        'username': username
+    }
+    return jsonify({'isAuthenticated': True, 'user': user})
+    
 
 #Route zum Abrufen von Nachrichten über HTTP GET
 @app.route('/chat/<user_uuid>', methods=['GET'])
