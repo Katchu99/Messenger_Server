@@ -56,21 +56,26 @@ def login():
         if data.authenticate_user(username, login_request['password']):
             logger.info('Login successful for user: %s', username)
 
-            # Set Token expire time based on remember_me
+            access_expires = datetime.timedelta(minutes=30)
+            # Set Refresh-Token expire time based on remember_me
             remember_me = login_request.get('remember_me', False)
             if remember_me:
-                expires = datetime.timedelta(days=30)
+                refresh_expires = datetime.timedelta(days=14)
             else:
-                expires = datetime.timedelta(days=1)
+                refresh_expires = datetime.timedelta(days=1)
 
             # Generate the JWT-Token
             user_id = data.get_id_by_name(username)
             identity = {'id': user_id, 'username': username}
-            access_token = create_access_token(identity=identity, expires_delta=expires)
+            access_token = create_access_token(identity=identity, expires_delta=access_expires)
+            refresh_token = create_access_token(expires_delta=refresh_expires)
 
             print(identity)
-
-            return jsonify({'success': True, 'message': 'Login successful', 'access_token': access_token, 'user': identity})
+            response = jsonify({'success': True, 'message': 'Login successful', 'user': identity})
+            response.set_cookie('access_token', access_token, secure=True, httponly=True)
+            response.set_cookie('refresh_token', refresh_token, secure=True, httponly=True)
+            return response
+        
         else:
             logger.warning('Login failed for user: %s', login_request['username'])
             return jsonify({'success': False, 'message': 'Login failed'})
@@ -79,10 +84,19 @@ def login():
         return jsonify({'success': False, 'message': 'User does not exist'})
 
 @app.route('/protected', methods=['GET'])
-@jwt_required()
+@jwt_required(refresh=True)
 def protected():
-    current_user = get_jwt_identity()
-    return jsonify(logged_in_as=current_user), 200
+    # current_user = get_jwt_identity()
+    # return jsonify(logged_in_as=current_user), 200
+    identity = get_jwt_identity()
+    user_id = identity['id']
+    username = identity['username']
+
+    user = {
+        'id': user_id,
+        'username': username
+    }
+    return jsonify({'isAuthenticated': True, 'user': user}), 200
 
 # Route for register
 @app.route('/register', methods=['POST'])
@@ -100,10 +114,10 @@ def register():
         return jsonify({'success': True, 'message': 'Register successful'})
 
 
-# Route to check token
-@app.route('/check-token', methods=['GET'])
-@jwt_required()
-def check_token():
+# Route to check auth
+@app.route('/check-auth', methods=['GET'])
+@jwt_required(refresh=True)
+def check_auth():
     identity = get_jwt_identity()
     user_id = identity['id']
     username = identity['username']
@@ -117,13 +131,13 @@ def check_token():
 
 #Route zum Abrufen von Nachrichten über HTTP GET
 @app.route('/chat/<user_uuid>', methods=['GET'])
-@jwt_required()
+@jwt_required(refresh=True)
 @cross_origin( origins='*', headers=['Content-Type', 'Authorization'])
 def get_chats(user_uuid):
     return jsonify(data.get_chats(user_uuid)) #data.get_chats() returns a list of tuples
 
 @app.route('/chat/<user_uuid>/createChat', methods=['POST'])
-@jwt_required()
+@jwt_required(refresh=True)
 @cross_origin(origins='*', headers=['Content-Type', 'Authorization'])
 def createChat(user_uuid):
     createChatRequest = request.get_json()
@@ -144,4 +158,4 @@ def handle_message(message):
 
 if __name__ == "__main__":
     #ssl_context = ('./SSL/localhost.pem', './SSL/localhost-key.pem')
-    socketio.run(app, host="localhost", port=6969) #, ssl_context=ssl_context)
+    socketio.run(app, host="localhost", port=5000) #, ssl_context=ssl_context)
