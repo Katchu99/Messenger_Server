@@ -5,7 +5,7 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
-class chatData():
+class AuthManager():
     def __init__(self, host, user, password, database) -> None:
         #MySQL Parameters
         self.host = host
@@ -16,7 +16,7 @@ class chatData():
         self.cursor = None
 
         self.connect()
-        logger.info(f"Initialized chatData with host ={host}, user={user}, database={database}")
+        logger.info(f"Initialized AuthManager with host ={host}, user={user}, database={database}")
 
     def connect(self):
         try:
@@ -89,7 +89,10 @@ class chatData():
         self.connection.commit()
         logger.info("Friends table created or already exists.")
 
-data_obj = chatData(
+def create_blacklisted_tokens(self):
+    self.cursor.execute("CREATE TABLE IF NOT EXISTS blacklisted_tokens (token VARCHAR(255) PRIMARY KEY)")
+
+auth_obj = AuthManager(
     host="localhost",
     user="root",
     password="rootroot",
