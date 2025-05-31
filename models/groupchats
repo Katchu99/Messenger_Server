@@ -4,8 +4,8 @@ from pymongoose.mongo_types import Types, Schema, MongoException, MongoError
 from bson import json_util
 from bson.objectid import ObjectId
 
-class Chat(Schema):
-    schema_name = "chats" # Name of the schema that mongo uses
+class Groupchat(Schema):
+    schema_name = "groupchat" # Name of the schema that mongo uses
     
     # Attributes
     id = None
@@ -14,6 +14,15 @@ class Chat(Schema):
 
     def __init__(self, **kwargs):
         self.schema = {
+            "members": {
+                "type": list,
+                "required": True,
+                "maxlength": 2,
+                "schema": {
+                    "type": ObjectId,
+                    "required": True
+                }
+            },
             "messages": {
                 "type": list,
                 "required": False,
@@ -21,9 +30,9 @@ class Chat(Schema):
                     "type": dict,
                     "schema": {
                         "_id": {"type": ObjectId, "required": True},
-                        "userid": {"type": str, "required": True},
+                        "userid": {"type": ObjectId, "required": True},
                         "message": {"type": str, "required": True},
-                        "timestamp": {"type": str, "required": True}
+                        "timestamp": {"type": datetime.datetime, "required": True, "default": datetime.datetime.now}
                     }
                 }
             }
